@@ -16,6 +16,12 @@ pipeline {
             }
         }
         stage("build") {
+            agent{
+                docker {
+                    image 'docker:24.0.5'
+                    reuseNode true
+                }
+            }
             steps {
                 echo 'BUILD EXECUTION STARTED'
                 sh 'go version'
