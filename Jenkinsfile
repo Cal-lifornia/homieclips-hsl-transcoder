@@ -2,7 +2,6 @@ pipeline {
     // install golang 1.14 on Jenkins node
     agent any
     tools {
-        docker 'docker'
         go 'go1.21.8'
     }
     environment {
