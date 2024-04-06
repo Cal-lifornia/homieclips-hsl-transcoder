@@ -2,6 +2,7 @@ pipeline {
     // install golang 1.14 on Jenkins node
     agent any
     tools {
+        docker 'docker'
         go 'go1.21.8'
     }
     environment {
@@ -12,7 +13,7 @@ pipeline {
         stage("unit-test") {
             steps {
                 echo 'UNIT TEST EXECUTION STARTED'
-                sh 'make unit-tests'
+                sh 'go test ./...'
             }
         }
         stage("build") {
