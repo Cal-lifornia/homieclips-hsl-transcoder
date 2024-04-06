@@ -36,14 +36,14 @@ func (worker *Worker) transcodeUpload(msg amqp091.Delivery) (*Job, error) {
 	// Get the object name
 	objectName := strings.TrimPrefix(msgBody.Key, "homieclips/uploaded/")
 
-	// Get the presigned url for transcoding
-	url, err := worker.getUrl("uploaded/" + objectName)
+	// Get the presigned minioUrl for transcoding
+	minioUrl, err := worker.getUrl("uploaded/" + objectName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Pass url to transcoder
-	hls_converter.CreateHlsStreams(url.String(), objectName)
+	// Pass minioUrl to transcoder
+	hls_converter.CreateHlsStreams(minioUrl.String(), objectName)
 
 	// Send success to db
 	_, err = worker.models.SendUploadLog(objectName, "successfully created hls streams")
@@ -68,17 +68,22 @@ func (worker *Worker) transcodeUpload(msg amqp091.Delivery) (*Job, error) {
 
 	// Upload the files
 	for _, result := range results {
+		var trouble error = nil
+
 		wg.Add(1)
-		go func(input string, name string) {
+		go func(input string, name string, trouble error) {
 			defer wg.Done()
 			uploadInfo, err := uploadHslFragment(worker.minioClient, input, name)
 			if err != nil {
 				color.Red("Error: ", err)
+				trouble = errors.New(err.Error())
 				return
 			}
 			fmt.Println("Success: ", uploadInfo.Key)
-		}(result, objectName)
-
+		}(result, objectName, trouble)
+		if trouble != nil {
+			return nil, err
+		}
 	}
 	wg.Wait()
 
@@ -107,7 +112,6 @@ func (worker *Worker) transcodeUpload(msg amqp091.Delivery) (*Job, error) {
 	}
 
 	// Delete original object
-
 	err = deleteOriginalUpload(worker.minioClient, objectName)
 	if err != nil {
 		return nil, err

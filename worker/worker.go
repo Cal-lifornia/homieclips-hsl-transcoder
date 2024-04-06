@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"github.com/fatih/color"
 	"log"
 
 	"github.com/Cal-lifornia/homieclips-hsl-transcoder/db"
@@ -46,7 +47,10 @@ func (worker *Worker) StartWorker(msgs <-chan amqp091.Delivery) {
 				_, err = worker.models.SendUploadError(currentJob.ObjectName, err)
 				if err != nil {
 					log.Printf("failed to upload error to db: %s\n", err)
-					msg.Reject(false)
+					err = msg.Reject(false)
+					if err != nil {
+						color.Red("error: %s\n", err)
+					}
 				}
 				return
 			}
