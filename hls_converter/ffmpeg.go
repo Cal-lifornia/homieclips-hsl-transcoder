@@ -36,7 +36,7 @@ var RES2160P = videoResolution{
 }
 
 func CreateHlsStreams(fileUrl string, objectName string) {
-	command := fmt.Sprintf(ffmpegCommand, fileUrl, objectName, os.Getenv("APP_URL"), objectName, objectName, objectName)
+	command := fmt.Sprintf(ffmpegCommand2160P, fileUrl, objectName, objectName, objectName)
 	parts := strings.Split(command, "\n")
 
 	cmd := exec.Command(parts[0], parts[1:]...)
@@ -76,34 +76,35 @@ func GetVideoResolution(videoPath string) (videoResolution, error) {
 	}, nil
 }
 
-func EditMasterHls(objectName string) error {
-	file, err := os.ReadFile(objectName + "_master.m3u8")
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(file), "\n")
-
-	for i, line := range lines {
-		if strings.Contains(line, objectName) {
-			lines[i] = os.Getenv("APP_URL") + "/api/storage/" + objectName + "/" + line
+/*
+	func EditMasterHls(objectName string) error {
+		file, err := os.ReadFile(objectName + "_master.m3u8")
+		if err != nil {
+			return err
 		}
+
+		lines := strings.Split(string(file), "\n")
+
+		for i, line := range lines {
+			if strings.Contains(line, objectName) {
+				lines[i] = objectName + "/" + line
+			}
+		}
+
+		result := strings.Join(lines, "\n")
+		err = os.WriteFile(objectName+".m3u8", []byte(result), 0644)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(objectName + "_master.m3u8")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
-
-	result := strings.Join(lines, "\n")
-	err = os.WriteFile(objectName+".m3u8", []byte(result), 0644)
-	if err != nil {
-		return err
-	}
-
-	err = os.Remove(objectName + "_master.m3u8")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
+*/
 func GetHlsResults(objectName string) ([]string, error) {
 	var results = []string{}
 	files, err := os.ReadDir(".")

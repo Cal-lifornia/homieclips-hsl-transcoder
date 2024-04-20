@@ -1,69 +1,89 @@
 package worker
 
 import (
-	"github.com/fatih/color"
-	"log"
-
+	"encoding/json"
 	"github.com/Cal-lifornia/homieclips-hsl-transcoder/db"
-	"github.com/minio/minio-go/v7"
-	"github.com/rabbitmq/amqp091-go"
+	"github.com/Cal-lifornia/homieclips-hsl-transcoder/storage"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"github.com/fatih/color"
+	"go.uber.org/zap"
+	"log"
+	"strings"
 )
 
 type Worker struct {
-	data        chan Job
-	quit        chan chan error
-	minioClient *minio.Client
-	models      *db.Models
+	*storage.Storage
+	models *db.Models
 }
 
 type Job struct {
-	ObjectName string
-	Success    bool
+	Success bool
 }
 
-func (worker *Worker) Close() error {
-	ch := make(chan error)
-	worker.quit <- ch
-	return <-ch
-}
-
-func CreateWorker(minioClient *minio.Client, models *db.Models) *Worker {
+func CreateWorker(storageClient *storage.Storage, models *db.Models) *Worker {
 	return &Worker{
-		data:        make(chan Job),
-		quit:        make(chan chan error),
-		minioClient: minioClient,
-		models:      models,
+		Storage: storageClient,
+		models:  models,
 	}
 
 }
 
-func (worker *Worker) StartWorker(msgs <-chan amqp091.Delivery) {
-	var forever chan struct{}
+type sqsBaseNotification struct {
+	Record []sqsNotificationBody `json:"Records"`
+}
 
-	go func() {
-		for msg := range msgs {
-			currentJob, err := worker.transcodeUpload(msg)
+type sqsNotificationBody struct {
+	EventName string `json:"eventName"`
+	S3        struct {
+		Object struct {
+			Key string `json:"key"`
+		} `json:"object"`
+	} `json:"s3"`
+}
+
+func (worker *Worker) StartWorker(msg types.Message) {
+	if strings.Contains(*msg.Body, "s3:TestEvent") {
+		zap.L().Info("event is not the one required",
+			zap.String("tag", "wrong event type"),
+			zap.String("service", "worker"),
+		)
+		return
+	}
+	var msgBody sqsBaseNotification
+
+	err := json.Unmarshal([]byte(*msg.Body), &msgBody)
+	if err != nil {
+		zap.L().Error(err.Error(),
+			zap.String("tag", "unmarshaling message body"),
+			zap.String("service", "worker"),
+		)
+		return
+	}
+
+	//Get the object name
+	objectName := strings.TrimPrefix(msgBody.Record[0].S3.Object.Key, "uploaded/")
+
+	currentJob, err := worker.transcodeUpload(objectName)
+	if err != nil {
+		_, err = worker.models.SendUploadError(objectName, err)
+		if err != nil {
+			log.Printf("failed to upload error to db: %s\n", err)
 			if err != nil {
-				_, err = worker.models.SendUploadError(currentJob.ObjectName, err)
-				if err != nil {
-					log.Printf("failed to upload error to db: %s\n", err)
-					err = msg.Reject(false)
-					if err != nil {
-						color.Red("error: %s\n", err)
-					}
-				}
-				return
-			}
-			if currentJob.Success {
-				err := worker.models.CompleteUpload(currentJob.ObjectName)
-				if err != nil {
-					log.Printf("failed to send complete to db: %s\n", err)
-				}
-				msg.Ack(false)
+				color.Red("error: %s\n", err)
 			}
 		}
-	}()
+		return
+	}
+	if currentJob.Success {
+		err := worker.models.CompleteUpload(objectName)
+		if err != nil {
+			log.Printf("failed to send complete to db: %s\n", err)
+		}
+	}
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
+	zap.L().Info("completed work on "+objectName,
+		zap.String("tag", "job"),
+		zap.String("service", "worker"),
+	)
+
 }
