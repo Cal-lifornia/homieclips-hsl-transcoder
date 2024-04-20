@@ -2,7 +2,7 @@ package hls_converter
 
 var getResolutionCommand = `ffprobe -v error -select_streams v -show_entries stream=width,height -of json %s`
 
-var ffmpegCommand = `ffmpeg
+var ffmpegCommand2160P = `ffmpeg
 -i
 %s
 -filter_complex
@@ -109,8 +109,6 @@ independent_segments
 mpegts
 -hls_segment_filename
 %s_%%v_data%%02d.ts
--hls_base_url
-%s/api/storage/%s/
 -master_pl_name
 %s_master.m3u8
 -var_stream_map
