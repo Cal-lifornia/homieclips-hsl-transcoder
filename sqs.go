@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
@@ -9,7 +10,6 @@ import (
 )
 
 func pollSqs(ctx context.Context, msgs chan<- types.Message, queueUrl string) {
-
 	for {
 		output, err := sqsClient.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
 			QueueUrl:            aws.String(queueUrl),
@@ -30,7 +30,7 @@ func pollSqs(ctx context.Context, msgs chan<- types.Message, queueUrl string) {
 	}
 }
 
-func deleteMessage(ctx context.Context, msg types.Message) {
+func deleteMessage(ctx context.Context, msg types.Message, queueUrl string) {
 	_, err := sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(queueUrl),
 		ReceiptHandle: msg.ReceiptHandle,

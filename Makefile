@@ -5,4 +5,4 @@ unit-tests:
 	go test ./...
 
 build:
-	docker build . -t homieclips/hls-converter
+	docker build . -t whobson00/homieclips-hls-converter:latest

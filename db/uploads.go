@@ -24,7 +24,7 @@ func (models *Models) CompleteUpload(objectName string) error {
 	}
 	update := bson.D{
 		{Key: "$set", Value: bson.D{
-			{Key: "ready", Value: "true"},
+			{Key: "ready", Value: true},
 		},
 		},
 		{Key: "$set", Value: bson.D{

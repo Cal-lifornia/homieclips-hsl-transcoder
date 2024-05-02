@@ -15,8 +15,12 @@ WORKDIR /
 
 COPY --from=build-stage /app/hls-converter /hls-converter
 
+RUN touch .env
+
 RUN apk update
 RUN apk upgrade
 RUN apk add --no-cache ffmpeg
+
+ENV ENVIRONMENT="docker"
 
 ENTRYPOINT ["/hls-converter"]
